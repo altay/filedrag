@@ -1,0 +1,143 @@
+!!!5
+%html
+  %head
+    %style(type='text/css')
+      :sass
+        body 
+          //background: #efefef
+        #dropzone
+          background: #dfdfdf
+          height: 200px
+          font-weight: bold
+          text-align: center  
+          padding: 1em 0  
+          margin: 1em 0  
+          border: 2px dashed black
+          border-radius: 7px  
+          -webkit-border-radius: 7px  
+          -moz-border-radius: 7px  
+          cursor: default  
+        #dropzone.hover 
+          color: #f00  
+          border-color: #f00  
+          border-style: solid  
+          box-shadow: inset 0 3px 4px #888  
+          -moz-box-shadow: inset 0 3px 4px #888  
+          -webkit-box-shadow: inset 0 3px 4px #888  
+        #files li
+          list-style-type: none
+          .status
+            color: red
+            font-weight: bold
+          img
+            width: 100px
+            margin-right: 10px
+            vertical-align: middle
+  %body
+    %form(id='upload' action='upload' method='post' enctype='multipart/form-data')
+      #dropzone Drag and drop files here
+      -#
+        %input(type='file' name='fileselect[]' multiple='multiple' id='fileselect')
+        #submitbutton
+          %button(type='submit') upload
+        %progress(min="0" max="100" value="0") 0% complete
+      %ul#files
+    %script(type='text/javascript' src='https://ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js')
+    :javascript
+      function log(msg){
+        if (typeof console!='undefined') {
+          try { console.log(msg); }
+          catch(e) {}
+        }
+      }
+      $(document).ready(function(){
+        if (!(window.File && window.FileList && window.FileReader)) {
+          alert("your browser doesn't support this demo.");
+        } else {
+           var $fileselect = $("#fileselect");
+           var $dropzone = $("#dropzone");  
+           var $submitbutton = $("#submitbutton");  
+           var reader = new FileReader();
+
+           function dropzoneHover(e) {
+             // need to stopPropagation of 'dragover' event, or 'drop' event won't fire in some browsers.
+             e.stopPropagation();
+             e.preventDefault();
+             (e.type=='dragover' ? $(this).addClass('hover') : $(this).removeClass('hover'));
+           }
+
+           // file drop  
+           $dropzone
+             .bind("dragover", dropzoneHover)  
+             .bind("dragleave", dropzoneHover)  
+             .bind('drop', function(e){
+               // cancel event and hover styling  
+               dropzoneHover(e);
+               var oe = e.originalEvent;
+               // fetch FileList object  
+               var files = (oe.target.files || oe.dataTransfer.files);
+               $.each(files, function(i,file){
+                 reader.readAsDataURL(file);
+                 reader.onload = function(){
+                   var dataUrl = reader.result;
+                   var html = "<li>";
+                   // if it's an image, show a preview
+                   if (file.type.indexOf('image')==0) {
+                     html += "<img src='"+dataUrl+"' />";
+                   }
+                   // show file name, type, and size, and append to ul#files
+                   html += ("<strong>"+file.name
+                     +"</strong> ("+(file.type)+", "+Math.round(file.size/1000)
+                     +" kb) <span class='status'></span> </li>");
+                   $('#files').append(html);
+
+                  // UPLOADING
+                  // Make sure the data loaded is long enough to represent a real file.
+                  if (dataUrl.length > 128) {
+                    // Per the Data URI spec, the only comma that appears is right after 
+                    // 'base64' and before the encoded content.
+                    var base64StartIndex = dataUrl.indexOf(',') + 1;
+                    $(".status:last").html("[UPLOADING...]").show();
+                    $.ajax({
+                      type: 'POST',
+                      url: '/upload',
+                      data: {
+                        'file': {
+                          'name': file.name,
+                          'size': file.size,
+                          'data': dataUrl.substring(base64StartIndex) // Base64 content 
+                        }
+                      },
+                      timeout: 60000, // 1 min timeout
+                      success: function(data){
+                        $(".status:last")
+                          .html("[UPLOADED! View your file <a target='_blank' href='"+data+"'>here</a>.]")
+                          .css('color', 'green');
+                      },
+                      error: function(xhr, txtStatus, error) {
+                        $(".status:last").html("[" + error + "]");
+                      }
+                    })
+                  }
+                }
+
+
+
+                   /*
+                   // upload
+                   var xhr = new XMLHttpRequest();
+                   if (xhr.upload) {
+                     var data = new FormData(); // not supported in firefox 3.6.  grrrr.
+                     data.append('customfield', 'this is some data');
+                     // start upload  
+                     xhr.open("POST", $("#upload").attr('action'), true);  
+                     xhr.setRequestHeader("X_FILENAME", file.name);  
+                     xhr.send(file);  
+                   }
+                   */
+               });
+               return false;
+             })
+             .show();
+         }  
+      });

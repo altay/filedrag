@@ -1,0 +1,6 @@
+demo of html5 desktop-to-browser file drag+drop
+
+to run:
+- set up sinatra (gem install sinatra)
+- ruby sinatra.rb
+- go to localhost:4567/upload
